@@ -2,3 +2,6 @@
 Sources/musescore
 Sources/research
 build
+compile_commands.json
+musesampler~.l_amd64
+test.pd
