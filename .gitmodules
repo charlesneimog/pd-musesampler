@@ -1,6 +1,0 @@
-[submodule "Resources/pd.build"]
-	path = Resources/pd.build
-	url = https://github.com/charlesneimog/pd.build
-[submodule "Libraries/utfcpp"]
-	path = Libraries/utfcpp
-	url = https://github.com/nemtrif/utfcpp.git
