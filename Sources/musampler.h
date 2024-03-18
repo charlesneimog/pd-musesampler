@@ -99,8 +99,11 @@ struct MuseSamplerLibHandler {
 
   public:
     MuseSamplerLibHandler() {
+
+        // TODO: Fix this for Windows and Max
         std::string path = "/home/neimog/.local/share/MuseSampler/lib/"
                            "libMuseSamplerCoreLib.so";
+
         void *m_lib = dlopen(path.c_str(), RTLD_LAZY);
         if (m_lib) {
             initLib = (ms_init)getLibFunc(m_lib, "ms_init");
