@@ -34,3 +34,4 @@
 build
 pd-musesampler
 compile_commands.json
+Sources/Musescore/apitypes.h
