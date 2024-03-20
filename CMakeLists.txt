@@ -6,11 +6,13 @@ project(pd-musesampler)
 #╭──────────────────────────────────────╮
 #│          MuseScore Headers           │
 #╰──────────────────────────────────────╯
-set(MUSESCORE_VERSION "v4.2.1")
 
+# check if MUSESCORE_VERSION is set
+if (NOT DEFINED MUSESCORE_VERSION)
+    set(MUSESCORE_VERSION "v4.2.1")
+    message(STATUS "Using apitypes.h from Musescore version: ${MUSESCORE_VERSION}")
+endif()
 set(MUSESCORE_API_TYPES ${CMAKE_CURRENT_SOURCE_DIR}/Sources/Musescore/apitypes.h)
-
-message(STATUS "Musescore version: ${MUSESCORE_VERSION}")
 
 if (NOT EXISTS ${MUSESCORE_API_TYPES})
     message(STATUS "Downloading Musescore API types")
