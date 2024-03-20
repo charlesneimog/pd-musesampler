@@ -1,23 +1,91 @@
 name: C/C++ CI
-
 on:
   push:
-    branches: [ "main" ]
+    branches: ["main"]
   pull_request:
-    branches: [ "main" ]
-
+    branches: ["main"]
 jobs:
-  build:
-
-    runs-on: ubuntu-latest
-
+  macos-universal-build:
+    runs-on: macos-latest
     steps:
-    - uses: actions/checkout@v3
-    - name: configure
-      run: ./configure
-    - name: make
-      run: make
-    - name: make check
-      run: make check
-    - name: make distcheck
-      run: make distcheck
+      - uses: actions/checkout@v3
+        with:
+          submodules: recursive
+          fetch-depth: 0
+      - name: Install PureData and Deps
+        run: |
+          brew install --cask pd
+      - name: Build Object
+        run: |
+          cmake . -B build
+          cmake --build build
+      - name: Make zip file
+        run: |
+          mkdir pd-musesampler
+          cp *.d_amd64 pd-musesampler
+      - name: Upload Object
+        uses: actions/upload-artifact@v3
+        with:
+          name: pd-musesampler
+          path: pd-musesampler
+  windows-build:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v3
+        with:
+          submodules: recursive
+          fetch-depth: 0
+      - if: runner.os == 'Windows'
+        name: "Install mingw deps"
+        uses: msys2/setup-msys2@v2
+        with:
+          msystem: mingw64
+          platform: x64
+          install: make autoconf automake libtool mingw-w64-x86_64-gcc cmake
+          update: false
+      - name: Install PureData
+        run: |
+          choco install puredata --yes
+      - if: runner.os == 'Windows'
+        name: Build Object
+        shell: msys2 {0}
+        run: |
+          cmake . -B build
+          cmake --build build
+      - name: Move files to pd-musesampler
+        run: |
+          cp musesampler~.m_amd64 pd-musesampler
+      - name: Upload
+        uses: actions/upload-artifact@v4
+        with:
+          name: pd-musesampler
+          path: pd-musesampler
+  #       # # # ===============================================================================================
+  #       # # # ===============================================================================================
+  #       # # # ===============================================================================================
+  # # build for Linux
+  linux-build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+        with:
+          submodules: recursive
+          fetch-depth: 0
+      - name: PureData Sources
+        run: |
+          sudo apt-get update
+          sudo add-apt-repository ppa:pure-data/pure-data -y
+          sudo apt-get install puredata -y
+      - name: Build Object
+        run: |
+          cmake . -B build
+          cmake --build build
+      - name: Make zip file
+        run: |
+          mkdir pd-musesampler
+          cp *.l_amd64 pd-musesampler
+      - name: Upload Object
+        uses: actions/upload-artifact@v3
+        with:
+          name: pd-musesampler
+          path: pd-musesampler
