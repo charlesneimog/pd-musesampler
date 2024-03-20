@@ -23,6 +23,12 @@ if (NOT EXISTS ${MUSESCORE_API_TYPES})
     file(DOWNLOAD https://raw.githubusercontent.com/musescore/MuseScore/${MUSESCORE_VERSION}/src/framework/musesampler/internal/apitypes.h ${MUSESCORE_API_TYPES})
 endif()
 
+# Remove #include "log.h"
+file(READ ${MUSESCORE_API_TYPES} MUSESCORE_API_TYPES_CONTENTS)
+string(REGEX REPLACE "#include[ \t]+\"log.h\"" "// #include \"log.h\"" MUSESCORE_API_TYPES_CONTENTS "${MUSESCORE_API_TYPES_CONTENTS}")
+
+file(WRITE ${MUSESCORE_API_TYPES} "${MUSESCORE_API_TYPES_CONTENTS}")
+
 #╭──────────────────────────────────────╮
 #│           PureData Object            │
 #╰──────────────────────────────────────╯
