@@ -8,7 +8,7 @@ jobs:
   macos-universal-build:
     runs-on: macos-latest
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
         with:
           submodules: recursive
           fetch-depth: 0
@@ -19,10 +19,6 @@ jobs:
         run: |
           cmake . -B build
           cmake --build build
-      - name: Make zip file
-        run: |
-          mkdir pd-musesampler
-          cp *.d_amd64 pd-musesampler
       - name: Upload Object
         uses: actions/upload-artifact@v3
         with:
@@ -31,7 +27,7 @@ jobs:
   windows-build:
     runs-on: windows-latest
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
         with:
           submodules: recursive
           fetch-depth: 0
@@ -39,9 +35,9 @@ jobs:
         name: "Install mingw deps"
         uses: msys2/setup-msys2@v2
         with:
-          msystem: mingw64
+          msystem: MINGW64
           platform: x64
-          install: make autoconf automake libtool mingw-w64-x86_64-gcc cmake
+          install: make mingw-w64-x86_64-gcc mingw64/mingw-w64-x86_64-cmake
           update: false
       - name: Install PureData
         run: |
@@ -52,18 +48,11 @@ jobs:
         run: |
           cmake . -B build
           cmake --build build
-      - name: Move files to pd-musesampler
-        run: |
-          cp musesampler~.m_amd64 pd-musesampler
       - name: Upload
         uses: actions/upload-artifact@v4
         with:
           name: pd-musesampler
           path: pd-musesampler
-  #       # # # ===============================================================================================
-  #       # # # ===============================================================================================
-  #       # # # ===============================================================================================
-  # # build for Linux
   linux-build:
     runs-on: ubuntu-latest
     steps:
@@ -80,10 +69,6 @@ jobs:
         run: |
           cmake . -B build
           cmake --build build
-      - name: Make zip file
-        run: |
-          mkdir pd-musesampler
-          cp *.l_amd64 pd-musesampler
       - name: Upload Object
         uses: actions/upload-artifact@v3
         with:

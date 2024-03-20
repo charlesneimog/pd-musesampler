@@ -33,11 +33,18 @@ file(WRITE ${MUSESCORE_API_TYPES} "${MUSESCORE_API_TYPES_CONTENTS}")
 #│           PureData Object            │
 #╰──────────────────────────────────────╯
 
-set_pd_external_path(${CMAKE_CURRENT_SOURCE_DIR})
-
+set_pd_external_path(${CMAKE_CURRENT_SOURCE_DIR}/pd-musesampler)
 file(GLOB SOURCES ${CMAKE_CURRENT_SOURCE_DIR}/Sources/*.cpp)
 add_pd_external(pd-musesampler musesampler~ ${SOURCES})
 set_target_properties(pd-musesampler PROPERTIES CXX_STANDARD 11)
+
+add_custom_command(TARGET pd-musesampler POST_BUILD
+    COMMAND ${CMAKE_COMMAND} -E copy
+    ${CMAKE_CURRENT_SOURCE_DIR}/Resources/musesampler~-help.pd
+    ${CMAKE_CURRENT_SOURCE_DIR}/pd-musesampler/
+)
+
+
 
 
 
