@@ -121,26 +121,24 @@ std::string getMuseSoundsPath() {
 #ifdef __linux__
     const char *xdgDataHome = getenv("XDG_DATA_HOME");
     const char *home = getenv("HOME");
-    std::string xdgMuse = std::string(xdgDataHome) + "/MuseSampler/lib/libMuseSamplerCoreLib.so";
     std::string homeMuse = std::string(home) + "/.local/share/MuseSampler/lib/libMuseSamplerCoreLib.so";
-    std::string genericMuse = "/usr/share/MuseSampler/lib/libMuseSamplerCoreLib.so";
 
-    if (access(xdgMuse.c_str(), F_OK) != -1) {
-        return xdgMuse;
-    } else if (access(homeMuse.c_str(), F_OK) != -1) {
+    if (access(homeMuse.c_str(), F_OK) != -1) {
         return homeMuse;
-    } else if (access(genericMuse.c_str(), F_OK) != -1) {
-        return genericMuse;
     } else {
         pd_error(NULL, "MuseSamplerCoreLib not found");
         return "";
     }
 #elif __APPLE__
-    // TODO: Add for Mac
-    return ""
+    std::string museSoundsLib = "/usr/local/lib/libMuseSamplerCoreLib.dylib";
+    if (access(museSoundsLib.c_str(), F_OK) != -1) {
+        return museSoundsLib;
+    } else {
+        pd_error(NULL, "MuseSamplerCoreLib not found");
+        return "";
+    }
 #elif _WIN32
-    // TODO: Add for Windows
-    return return ""
+    std::string museSoundsLib = "C:\\Program Files\\MuseScore\\MuseSamplerCoreLib.dll";
 #else
     pd_error(NULL, "Not able to recognize the OS");
     return ""
