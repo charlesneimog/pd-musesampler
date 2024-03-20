@@ -20,4 +20,4 @@ The binaries will be inside the folder `pd-musesampler`, inside this folder, ope
 
 # License
 
-`pd-musesampler` uses `apitypes.h` code. MuseScore is licensed under GPL version 3.0. 
+`pd-musesampler` uses `apitypes.h` from MuseScore. MuseScore is licensed under GPL version 3.0. 
