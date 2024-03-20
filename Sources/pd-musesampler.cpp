@@ -139,6 +139,7 @@ std::string getMuseSoundsPath() {
     }
 #elif _WIN32
     std::string museSoundsLib = "C:\\Program Files\\MuseScore\\MuseSamplerCoreLib.dll";
+    return "";
 #else
     pd_error(NULL, "Not able to recognize the OS");
     return ""
@@ -160,6 +161,11 @@ bool ValidateMuseLib(const MuseSamplerLibFunctions *libFunctions) {
 // ==============================================
 bool LoadMuseLib(t_MuseSampler *x) {
     std::string path = getMuseSoundsPath();
+
+    if (path.empty()) {
+        pd_error(NULL, "MuseSamplerCoreLib not found");
+        return false;
+    }
     void *m_lib = dlopen(path.c_str(), RTLD_LAZY);
     if (m_lib) {
         ms_init initLib = (ms_init)getLibFunc(m_lib, "ms_init");
