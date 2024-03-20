@@ -8,8 +8,10 @@
 #include <string>
 #include <thread>
 #include <unistd.h>
+#include <vector>
+#include <array>
 
-#if defined(Q_OS_WIN) && !defined(__MINGW64__)
+#if _WIN32
 #include <windows.h>
 #endif
 
@@ -109,8 +111,8 @@ static bool startMuseSampler(t_MuseSampler *x);
 
 // ==============================================
 inline void *getLibFunc(void *libHandle, const char *funcName) {
-#if defined(Q_OS_WIN) && !defined(__MINGW64__)
-    return GetProcAddress((HINSTANCE)libHandle, funcName);
+#ifdef _WIN32
+    return reinterpret_cast<void*>(GetProcAddress(static_cast<HINSTANCE>(libHandle), funcName));
 #else
     return dlsym(libHandle, funcName);
 #endif
@@ -118,7 +120,10 @@ inline void *getLibFunc(void *libHandle, const char *funcName) {
 
 // ==============================================
 std::string getMuseSoundsPath() {
-#ifdef __linux__
+#if _WIN32
+    std::string museSoundsLib = "C:\\Program Files\\MuseScore\\MuseSamplerCoreLib.dll";
+    return "";
+#elif __linux__
     const char *xdgDataHome = getenv("XDG_DATA_HOME");
     const char *home = getenv("HOME");
     std::string homeMuse = std::string(home) + "/.local/share/MuseSampler/lib/libMuseSamplerCoreLib.so";
@@ -137,9 +142,6 @@ std::string getMuseSoundsPath() {
         pd_error(NULL, "MuseSamplerCoreLib not found");
         return "";
     }
-#elif _WIN32
-    std::string museSoundsLib = "C:\\Program Files\\MuseScore\\MuseSamplerCoreLib.dll";
-    return "";
 #else
     pd_error(NULL, "Not able to recognize the OS");
     return ""
@@ -166,7 +168,11 @@ bool LoadMuseLib(t_MuseSampler *x) {
         pd_error(NULL, "MuseSamplerCoreLib not found");
         return false;
     }
+#ifdef _WIN32
+    void *m_lib = LoadLibrary(path.c_str());
+#else
     void *m_lib = dlopen(path.c_str(), RTLD_LAZY);
+#endif
     if (m_lib) {
         ms_init initLib = (ms_init)getLibFunc(m_lib, "ms_init");
         if (initLib) {
