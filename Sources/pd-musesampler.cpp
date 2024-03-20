@@ -2,10 +2,10 @@
 
 #include "Musescore/apitypes.h"
 
+#include <array>
 #include <string>
 #include <unistd.h>
 #include <vector>
-#include <array>
 
 #if _WIN32
 #include <windows.h>
@@ -110,7 +110,7 @@ static bool startMuseSampler(t_MuseSampler *x);
 // ==============================================
 inline void *getLibFunc(void *libHandle, const char *funcName) {
 #ifdef _WIN32
-    return reinterpret_cast<void*>(GetProcAddress(static_cast<HINSTANCE>(libHandle), funcName));
+    return reinterpret_cast<void *>(GetProcAddress(static_cast<HINSTANCE>(libHandle), funcName));
 #else
     return dlsym(libHandle, funcName);
 #endif
@@ -123,18 +123,15 @@ std::string getMuseSoundsPath() {
     if (access(museSoundsLib.c_str(), F_OK) != -1) {
         return museSoundsLib;
     } else {
-        pd_error(NULL, "MuseSamplerCoreLib not found");
         return "";
     }
 #elif __linux__
     const char *xdgDataHome = getenv("XDG_DATA_HOME");
     const char *home = getenv("HOME");
     std::string homeMuse = std::string(home) + "/.local/share/MuseSampler/lib/libMuseSamplerCoreLib.so";
-
     if (access(homeMuse.c_str(), F_OK) != -1) {
         return homeMuse;
     } else {
-        pd_error(NULL, "MuseSamplerCoreLib not found");
         return "";
     }
 #elif __APPLE__
@@ -142,7 +139,6 @@ std::string getMuseSoundsPath() {
     if (access(museSoundsLib.c_str(), F_OK) != -1) {
         return museSoundsLib;
     } else {
-        pd_error(NULL, "MuseSamplerCoreLib not found");
         return "";
     }
 #else
@@ -168,7 +164,8 @@ bool LoadMuseLib(t_MuseSampler *x) {
     std::string path = getMuseSoundsPath();
 
     if (path.empty()) {
-        pd_error(NULL, "MuseSamplerCoreLib not found");
+        pd_error(NULL, "MuseSounds not found, if you are sure you have it please report in "
+                       "https://github.com/charlesneimog/pd-musesampler/issues.");
         return false;
     }
 #ifdef _WIN32
