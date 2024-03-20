@@ -121,8 +121,13 @@ inline void *getLibFunc(void *libHandle, const char *funcName) {
 // ==============================================
 std::string getMuseSoundsPath() {
 #if _WIN32
-    std::string museSoundsLib = "C:\\Program Files\\MuseScore\\MuseSamplerCoreLib.dll";
-    return "";
+    std::string museSoundsLib = "C:\\Windows\\System32\\MuseSamplerCoreLib.dll";
+    if (access(museSoundsLib.c_str(), F_OK) != -1) {
+        return museSoundsLib;
+    } else {
+        pd_error(NULL, "MuseSamplerCoreLib not found");
+        return "";
+    }
 #elif __linux__
     const char *xdgDataHome = getenv("XDG_DATA_HOME");
     const char *home = getenv("HOME");
