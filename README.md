@@ -6,6 +6,8 @@ Use MuseSampler inside PureData.
 > You need to install MuseSounds. Check the instructions [here](https://musescore.org/en/handbook/4/installing-muse-sounds).
 
 # Build
+> [!NOTE]
+> You will need PureData, download it [here](https://puredata.info/downloads/pure-data).
 
 For Linux, Mac and Windows (using Mingw64):
 
@@ -18,10 +20,4 @@ The binaries will be inside the folder `pd-musesampler`, inside this folder, ope
 
 # License
 
-This object needs `MuseSounds` developed by Muse Group. Download it from https://www.musehub.com/ and for Linux search for Muse Sounds Manager (bottom of the page).
-
-As they say: 
-
-> Muse Sounds cover the symphony orchestra and choral voices. Incredibly, these beautifully crafted instrument packs are available exclusively in Muse Hub completely **free**.​
-
-I hope that this can be used for Live-Eletronics music. Or just for fun!
+`pd-musesampler` uses `apitypes.h` code. MuseScore is licensed under GPL version 3.0. 
