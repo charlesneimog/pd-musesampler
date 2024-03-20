@@ -290,6 +290,12 @@ void NoteOn(t_MuseSampler *x, t_float note, t_float velocity, t_float cents) {
         return;
     }
 
+    // check is absolute value of cents is minor than 100
+    if (abs((int)cents) > 100) {
+        pd_error(x, "Cents must be between -100 and 100");
+        return;
+    }
+
     // ms_LivePlayStartNoteEvent_2 event = ms_LivePlayStartNoteEvent_2();
     ms_AuditionStartNoteEvent_2 event = ms_AuditionStartNoteEvent_2();
     event._pitch = note;
