@@ -2,9 +2,8 @@
 
 #include "Musescore/apitypes.h"
 
-#include <dlfcn.h>
+
 #include <functional>
-#include <memory> // Testing For std::shared_ptr
 #include <string>
 #include <thread>
 #include <unistd.h>
@@ -13,6 +12,8 @@
 
 #if _WIN32
 #include <windows.h>
+#else
+#include <dlfcn.h>
 #endif
 
 // #ifdef DEBUG_MODE
