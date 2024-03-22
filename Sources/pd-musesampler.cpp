@@ -163,6 +163,9 @@ std::string getMuseSoundsPath() {
 }
 
 // ==============================================
+/*
+ * This function validates if the MuseSampler lib has all the necessary functions
+ */
 bool ValidateMuseLib(const MuseSamplerLibFunctions *Funcs) {
     return (Funcs->initSampler && Funcs->getVersionString && Funcs->initLib && Funcs->create &&
             Funcs->destroy && Funcs->getInstrumentList && Funcs->getNextInstrument &&
@@ -174,6 +177,9 @@ bool ValidateMuseLib(const MuseSamplerLibFunctions *Funcs) {
 }
 
 // ==============================================
+/*
+ * This function loads the MuseSampler lib and get the Functions
+ */
 bool LoadMuseLib(t_MuseSampler *x) {
     std::string path = getMuseSoundsPath();
 
@@ -270,6 +276,9 @@ bool LoadMuseLib(t_MuseSampler *x) {
 // │          PureData Methods           │
 // ╰─────────────────────────────────────╯
 // ==============================================
+/*
+ * Stop all notes playing
+ */
 void AllNotesOff(t_MuseSampler *x, t_float note, t_float velocity, t_float cents) {
     DEBUG_PRINT("NoteOn");
 
@@ -287,6 +296,9 @@ void AllNotesOff(t_MuseSampler *x, t_float note, t_float velocity, t_float cents
 }
 
 // ==============================================
+/*
+ * Note Off
+ */
 void NoteOff(t_MuseSampler *x, t_float note, t_float velocity) {
     DEBUG_PRINT("NoteOff");
 
@@ -310,6 +322,9 @@ void NoteOff(t_MuseSampler *x, t_float note, t_float velocity) {
 }
 
 // ==============================================
+/*
+ * Note On
+ */
 void NoteOn(t_MuseSampler *x, t_float note, t_float velocity, t_float cents) {
     DEBUG_PRINT("NoteOn");
 
@@ -357,6 +372,9 @@ void NoteOn(t_MuseSampler *x, t_float note, t_float velocity, t_float cents) {
 }
 
 // ==============================================
+/*
+ * Articulation seems to be possible in version 0.6
+ */
 void Articulation(t_MuseSampler *x, t_float art) {
     DEBUG_PRINT("Articulation");
 
@@ -368,6 +386,9 @@ void Articulation(t_MuseSampler *x, t_float art) {
 }
 
 // ==============================================
+/*
+ * Just possible to disable reverb
+ */
 void Reverb(t_MuseSampler *x, t_float reverb) {
     DEBUG_PRINT("Reverb");
     if (!x->started) {
@@ -381,8 +402,10 @@ void Reverb(t_MuseSampler *x, t_float reverb) {
 }
 
 // ==============================================
+/*
+ * This will print all the installed instruments
+ */
 void Get(t_MuseSampler *x, t_symbol *s) {
-
     std::string method = s->s_name;
     if (method == "instruments") {
         DEBUG_PRINT("getInstrumentList");
@@ -402,12 +425,9 @@ void Get(t_MuseSampler *x, t_symbol *s) {
 
 // ==============================================
 /*
- *
+ * This will set the instrument to the sampler, BUG: just possible once
  */
 void setInstrument(t_MuseSampler *x, t_float id) {
-
-    DEBUG_PRINT("=============================");
-    DEBUG_PRINT("setInstrument");
 
     if (x->m_instrumentInfo.isValid()) {
         for (size_t i = 0; i < MAX_VOICE; ++i) {
@@ -449,6 +469,9 @@ void setInstrument(t_MuseSampler *x, t_float id) {
 }
 
 // ==============================================
+/*
+ * This will start the MuseSampler
+ */
 static bool startMuseSampler(t_MuseSampler *x) {
     if (x->renderStep == 0) {
         return false;
@@ -479,6 +502,7 @@ static bool startMuseSampler(t_MuseSampler *x) {
     return true;
 }
 // ==============================================
+/* Perform Method */
 static t_int *MuseSamplerPerform(t_int *w) {
     t_MuseSampler *x = (t_MuseSampler *)(w[1]);
 
@@ -522,16 +546,13 @@ static t_int *MuseSamplerPerform(t_int *w) {
             lSig[i] = x->m_bus._channels[0][i];
             rSig[i] = x->m_bus._channels[1][i];
         }
-        if (x->Track != nullptr) {
-            x->museLib->clearTrack(x->m_sampler, x->Track);
-        }
-        // x->museLib->clearTrack(x->m_sampler, x->Track);
     }
 
     return (w + 5);
 }
 
 // ==============================================
+/* Add DSP Method */
 static void MuseSamplerAddDsp(t_MuseSampler *x, t_signal **sp) {
     x->renderStep = sp[0]->s_n;
     x->m_currentPosition = 0;
@@ -546,6 +567,7 @@ static void MuseSamplerAddDsp(t_MuseSampler *x, t_signal **sp) {
 }
 
 // ==============================================
+/* Create PureData Object */
 static void *NewMuseSampler(t_symbol *s, int argc, t_atom *argv) {
     DEBUG_PRINT("NewMuseSampler");
     t_MuseSampler *x = (t_MuseSampler *)pd_new(MuseSampler);
@@ -567,7 +589,7 @@ static void *NewMuseSampler(t_symbol *s, int argc, t_atom *argv) {
     for (int i = 0; i < argc; i++) {
         if (argv[i].a_type == A_SYMBOL) {
             std::string arg = atom_getsymbol(argv + i)->s_name;
-            if (arg == "-inst") {
+            if (arg == "-inst" || arg == "-i") {
                 if (argv[i + 1].a_type == A_FLOAT) {
                     setInstrument(x, atom_getint(argv + i + 1));
 
@@ -584,6 +606,7 @@ static void *NewMuseSampler(t_symbol *s, int argc, t_atom *argv) {
 }
 
 // ==============================================
+/* When the object is deleted */
 static void *FreeMuseSampler(t_MuseSampler *x) {
     x->museLib->destroy(x->m_sampler);
     delete x->museLib;
@@ -598,6 +621,7 @@ void musesampler_tilde_setup(void);
 #endif
 
 // ==============================================
+/* Setup the object */
 void musesampler_tilde_setup(void) {
     MuseSampler = class_new(gensym("musesampler~"), (t_newmethod)NewMuseSampler, NULL, sizeof(t_MuseSampler),
                             CLASS_DEFAULT, A_GIMME, 0);
