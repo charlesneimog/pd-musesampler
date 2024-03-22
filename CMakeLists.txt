@@ -21,13 +21,12 @@ if (NOT EXISTS ${MUSESCORE_API_TYPES})
         file(MAKE_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/Sources/Musescore)
     endif()
     file(DOWNLOAD https://raw.githubusercontent.com/musescore/MuseScore/${MUSESCORE_VERSION}/src/framework/musesampler/internal/apitypes.h ${MUSESCORE_API_TYPES})
+
+    # Remove #include "log.h"
+    file(READ ${MUSESCORE_API_TYPES} MUSESCORE_API_TYPES_CONTENTS)
+    string(REGEX REPLACE "#include[ \t]+\"log.h\"" "// #include \"log.h\"" MUSESCORE_API_TYPES_CONTENTS "${MUSESCORE_API_TYPES_CONTENTS}")
+    file(WRITE ${MUSESCORE_API_TYPES} "${MUSESCORE_API_TYPES_CONTENTS}")
 endif()
-
-# Remove #include "log.h"
-file(READ ${MUSESCORE_API_TYPES} MUSESCORE_API_TYPES_CONTENTS)
-string(REGEX REPLACE "#include[ \t]+\"log.h\"" "// #include \"log.h\"" MUSESCORE_API_TYPES_CONTENTS "${MUSESCORE_API_TYPES_CONTENTS}")
-
-file(WRITE ${MUSESCORE_API_TYPES} "${MUSESCORE_API_TYPES_CONTENTS}")
 
 #╭──────────────────────────────────────╮
 #│           PureData Object            │
@@ -38,11 +37,22 @@ file(GLOB SOURCES ${CMAKE_CURRENT_SOURCE_DIR}/Sources/*.cpp)
 add_pd_external(pd-musesampler musesampler~ ${SOURCES})
 set_target_properties(pd-musesampler PROPERTIES CXX_STANDARD 11)
 
-add_custom_command(TARGET pd-musesampler POST_BUILD
-    COMMAND ${CMAKE_COMMAND} -E copy
-    ${CMAKE_CURRENT_SOURCE_DIR}/Resources/musesampler~-help.pd
-    ${CMAKE_CURRENT_SOURCE_DIR}/pd-musesampler/
-)
+# check if build is for release
+if (CMAKE_BUILD_TYPE STREQUAL "Release")
+    add_custom_command(TARGET pd-musesampler POST_BUILD
+        COMMAND ${CMAKE_COMMAND} -E copy
+        ${CMAKE_CURRENT_SOURCE_DIR}/Resources/musesampler~-help.pd
+        ${CMAKE_CURRENT_SOURCE_DIR}/pd-musesampler/
+    )
+else()
+    add_definitions(-DDEBUG)
+    add_custom_command(TARGET pd-musesampler POST_BUILD
+        COMMAND ${CMAKE_COMMAND} -E copy
+        ${CMAKE_CURRENT_SOURCE_DIR}/pd-musesampler/musesampler~-help.pd
+        ${CMAKE_CURRENT_SOURCE_DIR}/Resources/
+    )
+
+endif()
 
 
 

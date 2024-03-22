@@ -1,6 +1,6 @@
 #include <m_pd.h>
 
-#include "Musescore/apitypes.h"
+#include "Musescore/apitypes.h" // Downloaded by Cmake
 
 #include <array>
 #include <string>
@@ -13,10 +13,13 @@
 #include <dlfcn.h>
 #endif
 
-// #ifdef DEBUG_MODE
-#define DEBUG_PRINT(message) printf("[DEBUG] %s\n", message)
+#include <chrono>
+#include <iostream>
+
+// #ifdef DEBUG
+// #define DEBUG_PRINT(message) printf("[DEBUG] %s\n", message)
 // #else
-// #define DEBUG_PRINT(message) // Define como vazio em builds sem debug
+#define DEBUG_PRINT(message) // Define como vazio em builds sem debug
 // #endif
 
 static t_class *MuseSampler;
@@ -43,10 +46,17 @@ struct MuseSamplerLibFunctions {
 
     ms_MuseSampler_start_liveplay_mode startLivePlayMode = nullptr;
     ms_MuseSampler_stop_liveplay_mode stopLivePlayMode = nullptr;
+    ms_MuseSampler_start_liveplay_note_2 startLivePlayNote = nullptr;
 
     ms_disable_reverb disableReverb = nullptr; // TODO: REMOVE
     ms_MuseSampler_add_track addTrack = nullptr;
+    ms_MuseSampler_clear_track finalizeTrack = nullptr;
+    ms_MuseSampler_clear_track clearTrack = nullptr;
     ms_MuseSampler_process process = nullptr;
+
+    // playback
+    ms_MuseSampler_set_playing setPlaying = nullptr;
+    ms_MuseSampler_set_position setPosition = nullptr;
 };
 
 struct TrackNote {
@@ -69,6 +79,10 @@ typedef struct _Synth {
     InstrumentInfo m_instrument;
     ms_Track Track;
 
+    // ==============================================
+    ms_LivePlayStartNoteEvent_2 eventList[MAX_VOICE];
+    int eventIndex = 0;
+
     // TrackList is a vector of tracks
     std::vector<ms_Track> trackList;
     std::vector<TrackNote> TrackNotes;
@@ -90,6 +104,7 @@ typedef struct _Synth {
     float m_currentPosition = 0;
     int outIndex;
     int renderStep;
+    int settedStep;
 
     std::vector<t_sample> m_leftChannel;
     std::vector<t_sample> m_rightChannel;
@@ -142,21 +157,20 @@ std::string getMuseSoundsPath() {
         return "";
     }
 #else
-    pd_error(NULL, "Not able to recognize the OS");
+    pd_error(NULL, "[musesampler~] Not able to recognize the OS");
     return ""
 #endif
 }
 
 // ==============================================
-bool ValidateMuseLib(const MuseSamplerLibFunctions *libFunctions) {
-    return (libFunctions->initSampler && libFunctions->getVersionString && libFunctions->initLib &&
-            libFunctions->create && libFunctions->destroy && libFunctions->getInstrumentList &&
-            libFunctions->getNextInstrument && libFunctions->getInstrumentId &&
-            libFunctions->getInstrumentName && libFunctions->getInstrumentCategory &&
-            libFunctions->getMpeSoundId && libFunctions->startAuditionNote &&
-            libFunctions->stopAuditionNote && libFunctions->allNotesOff && libFunctions->startLivePlayMode &&
-            libFunctions->stopLivePlayMode && libFunctions->disableReverb && libFunctions->addTrack &&
-            libFunctions->process);
+bool ValidateMuseLib(const MuseSamplerLibFunctions *Funcs) {
+    return (Funcs->initSampler && Funcs->getVersionString && Funcs->initLib && Funcs->create &&
+            Funcs->destroy && Funcs->getInstrumentList && Funcs->getNextInstrument &&
+            Funcs->getInstrumentId && Funcs->clearTrack && Funcs->getInstrumentName &&
+            Funcs->getInstrumentCategory && Funcs->getMpeSoundId && Funcs->startAuditionNote &&
+            Funcs->finalizeTrack && Funcs->stopAuditionNote && Funcs->allNotesOff &&
+            Funcs->startLivePlayMode && Funcs->stopLivePlayMode && Funcs->disableReverb && Funcs->addTrack &&
+            Funcs->process);
 }
 
 // ==============================================
@@ -178,13 +192,11 @@ bool LoadMuseLib(t_MuseSampler *x) {
         if (initLib) {
             ms_Result res = initLib();
             if (res != ms_Result_OK) {
-                pd_error(NULL, "Failed to initialize MuseSampler");
+                pd_error(x, "[musesampler~] Failed to initialize MuseSampler");
                 return false;
-            } else {
-                post("MuseSampler initialized");
             }
         } else {
-            pd_error(NULL, "Failed to find init function");
+            pd_error(x, "[musesampler~] Failed to find init function");
             return false;
         }
     }
@@ -200,7 +212,7 @@ bool LoadMuseLib(t_MuseSampler *x) {
     bool at_least_v_0_5 = (major == 0 && minor >= 5) || major > 0;
 
     if (!at_least_v_0_5) {
-        pd_error(NULL, "MuseSampler version is too old, please update");
+        pd_error(x, "[musesampler~] MuseSampler version is too old, please update");
         return false;
     }
 
@@ -231,12 +243,21 @@ bool LoadMuseLib(t_MuseSampler *x) {
     x->museLib->stopLivePlayMode =
         (ms_MuseSampler_stop_liveplay_mode)getLibFunc(m_lib, "ms_MuseSampler_stop_liveplay_mode");
 
+    x->museLib->startLivePlayNote =
+        (ms_MuseSampler_start_liveplay_note_2)getLibFunc(m_lib, "ms_MuseSampler_start_liveplay_note_2");
+
     x->museLib->disableReverb = (ms_disable_reverb)getLibFunc(m_lib, "ms_disable_reverb");
     x->museLib->addTrack = (ms_MuseSampler_add_track)getLibFunc(m_lib, "ms_MuseSampler_add_track");
+    x->museLib->clearTrack = (ms_MuseSampler_clear_track)getLibFunc(m_lib, "ms_MuseSampler_clear_track");
+    x->museLib->finalizeTrack =
+        (ms_MuseSampler_finalize_track)getLibFunc(m_lib, "ms_MuseSampler_finalize_track");
     x->museLib->process = (ms_MuseSampler_process)getLibFunc(m_lib, "ms_MuseSampler_process");
 
+    x->museLib->setPlaying = (ms_MuseSampler_set_playing)getLibFunc(m_lib, "ms_MuseSampler_set_playing");
+    x->museLib->setPosition = (ms_MuseSampler_set_position)getLibFunc(m_lib, "ms_MuseSampler_set_position");
+
     if (!ValidateMuseLib(x->museLib)) {
-        pd_error(NULL, "MuseSampler lib is not valid");
+        pd_error(x, "[musesampler~] MuseSampler lib is not valid");
         return false;
     }
     x->museLib->initLib();
@@ -253,12 +274,12 @@ void AllNotesOff(t_MuseSampler *x, t_float note, t_float velocity, t_float cents
     DEBUG_PRINT("NoteOn");
 
     if (!x->started) {
-        pd_error(x, "Sampler not initialized");
+        pd_error(x, "[musesampler~] Sampler not initialized");
         return;
     }
 
     if (!x->m_instrumentInfo.isValid()) {
-        pd_error(x, "No instrument set");
+        pd_error(x, "[musesampler~] No instrument set");
         return;
     }
 
@@ -270,7 +291,7 @@ void NoteOff(t_MuseSampler *x, t_float note, t_float velocity) {
     DEBUG_PRINT("NoteOff");
 
     if (!x->started) {
-        pd_error(x, "Sampler not initialized");
+        pd_error(x, "[musesampler~] Sampler not initialized");
         return;
     }
 
@@ -293,29 +314,36 @@ void NoteOn(t_MuseSampler *x, t_float note, t_float velocity, t_float cents) {
     DEBUG_PRINT("NoteOn");
 
     if (!x->started) {
-        pd_error(x, "Sampler not initialized");
+        pd_error(x, "[musesampler~] Sampler not initialized");
         return;
     }
 
     if (!x->m_instrumentInfo.isValid()) {
-        pd_error(x, "No instrument set");
+        pd_error(x, "[musesampler~] No instrument set");
         return;
     }
 
     // check is absolute value of cents is minor than 100
     if (abs((int)cents) > 100) {
-        pd_error(x, "Cents must be between -100 and 100");
+        pd_error(x, "[musesampler~] Cents must be between -100 and 100");
         return;
     }
 
     // ms_LivePlayStartNoteEvent_2 event = ms_LivePlayStartNoteEvent_2();
-    ms_AuditionStartNoteEvent_2 event = ms_AuditionStartNoteEvent_2();
+    // ms_AuditionStartNoteEvent_2 event = ms_AuditionStartNoteEvent_2();
+    // event._pitch = note;
+    // event._dynamics = velocity / 127.0;
+    // // event._articulation = (ms_NoteArticulation)x->articulation;
+    // event._offset_cents = cents;
+    ms_LivePlayStartNoteEvent_2 event = ms_LivePlayStartNoteEvent_2();
     event._pitch = note;
-    event._dynamics = velocity / 127.0;
-    event._articulation = (ms_NoteArticulation)x->articulation;
     event._offset_cents = cents;
+    event._dynamics = velocity / 127.0;
 
-    x->museLib->startAuditionNote(x->m_sampler, x->trackList[0], event);
+    // x->museLib->startLivePlayNote(x->m_sampler, x->trackList[0], event); // BUG: for now just track 0
+    x->eventList[x->eventIndex] = event;
+    x->eventIndex++;
+
     x->TrackNotes[x->trackIndex].midiNote = note;
     x->TrackNotes[x->trackIndex].trackIndex = x->trackIndex;
 
@@ -323,7 +351,6 @@ void NoteOn(t_MuseSampler *x, t_float note, t_float velocity, t_float cents) {
     if (x->trackIndex >= x->trackList.size()) {
         x->trackIndex = 0;
     }
-    // post("track index: %d", x->trackIndex);
 
     x->m_currentPosition = 0;
     x->m_isPlaying = true;
@@ -334,7 +361,7 @@ void Articulation(t_MuseSampler *x, t_float art) {
     DEBUG_PRINT("Articulation");
 
     if (!x->started) {
-        pd_error(x, "Sampler not initialized");
+        pd_error(x, "[musesampler~] Sampler not initialized");
         return;
     }
     x->articulation = 1LL << (int)art;
@@ -344,28 +371,32 @@ void Articulation(t_MuseSampler *x, t_float art) {
 void Reverb(t_MuseSampler *x, t_float reverb) {
     DEBUG_PRINT("Reverb");
     if (!x->started) {
-        pd_error(x, "Sampler not initialized");
+        pd_error(x, "[musesampler~] Sampler not initialized");
         return;
     }
     if (x->museLib->disableReverb() != ms_Result_OK) {
-        pd_error(x, "Reverb not enabled");
+        pd_error(x, "[musesampler~] Reverb not enabled");
         return;
     }
 }
 
 // ==============================================
-void getInstrumentList(t_MuseSampler *x) {
-    DEBUG_PRINT("getInstrumentList");
-    auto instrumentList = x->museLib->getInstrumentList();
-    while (auto instrument = x->museLib->getNextInstrument(instrumentList)) {
-        int instrumentId = x->museLib->getInstrumentId(instrument);
-        std::string internalName = x->museLib->getInstrumentName(instrument);
-        std::string internalCategory = x->museLib->getInstrumentCategory(instrument);
-        std::string instrumentSoundId = x->museLib->getMpeSoundId(instrument);
-        t_atom argv[2];
-        SETFLOAT(argv, instrumentId);
-        SETSYMBOL(argv + 1, gensym(internalName.c_str()));
-        outlet_anything(x->aux, gensym("inst"), 2, argv);
+void Get(t_MuseSampler *x, t_symbol *s) {
+
+    std::string method = s->s_name;
+    if (method == "instruments") {
+        DEBUG_PRINT("getInstrumentList");
+        auto instrumentList = x->museLib->getInstrumentList();
+        while (auto instrument = x->museLib->getNextInstrument(instrumentList)) {
+            int instrumentId = x->museLib->getInstrumentId(instrument);
+            std::string internalName = x->museLib->getInstrumentName(instrument);
+            std::string internalCategory = x->museLib->getInstrumentCategory(instrument);
+            std::string instrumentSoundId = x->museLib->getMpeSoundId(instrument);
+            t_atom argv[2];
+            SETFLOAT(argv, instrumentId);
+            SETSYMBOL(argv + 1, gensym(internalName.c_str()));
+            outlet_anything(x->aux, gensym("inst"), 2, argv);
+        }
     }
 }
 
@@ -374,10 +405,21 @@ void getInstrumentList(t_MuseSampler *x) {
  *
  */
 void setInstrument(t_MuseSampler *x, t_float id) {
+
+    DEBUG_PRINT("=============================");
     DEBUG_PRINT("setInstrument");
-    // if (!x->started) {
-    //     startMuseSampler(x);
-    // }
+
+    if (x->m_instrumentInfo.isValid()) {
+        for (size_t i = 0; i < MAX_VOICE; ++i) {
+            ms_Result clearOk = x->museLib->clearTrack(x->m_sampler, x->trackList[i]);
+            ms_Result finalizeOk = x->museLib->finalizeTrack(x->m_sampler, x->trackList[i]);
+            if (clearOk != ms_Result_OK && finalizeOk != ms_Result_OK) {
+                pd_error(x, "[musesampler~] Error clearing track");
+            }
+        }
+        x->museLib->stopLivePlayMode(x->m_sampler);
+    }
+
     auto instrumentList = x->museLib->getInstrumentList();
     bool instrumentFound = false;
     while (auto instrument = x->museLib->getNextInstrument(instrumentList)) {
@@ -386,44 +428,52 @@ void setInstrument(t_MuseSampler *x, t_float id) {
         std::string internalCategory = x->museLib->getInstrumentCategory(instrument);
         std::string instrumentSoundId = x->museLib->getMpeSoundId(instrument);
         if (instrumentId == id) {
-            post("Loading instrument %s", internalName.c_str());
             x->m_instrumentInfo.instrumentId = instrumentId;
             x->m_instrumentInfo.msInstrument = instrument;
             for (size_t i = 0; i < MAX_VOICE; ++i) {
+                // BUG: MuseSounds Just support 1 track (version < 0.6)
                 ms_Track track = x->museLib->addTrack(x->m_sampler, instrumentId);
                 x->trackList.push_back(track);
             }
+            startMuseSampler(x);
             instrumentFound = true;
-            post("Instrument loaded");
+            post("[musesampler~] %s Loaded!", internalName.c_str());
         }
     }
+
     if (!instrumentFound) {
-        pd_error(x, "Instrument not found, send 'insts' message to list all IDs for available instruments");
+        pd_error(x, "[musesampler~] Instrument not found, send 'insts' message to list all IDs for available "
+                    "instruments");
         return;
     }
 }
 
 // ==============================================
 static bool startMuseSampler(t_MuseSampler *x) {
+    if (x->renderStep == 0) {
+        return false;
+    }
+
+    if (x->m_leftChannel.size() != x->renderStep) {
+        x->m_leftChannel.resize(x->renderStep);
+        x->m_rightChannel.resize(x->renderStep);
+        x->m_bus._num_channels = 2;
+        x->m_bus._num_data_pts = x->renderStep;
+        x->m_internalBuffer[0] = x->m_leftChannel.data();
+        x->m_internalBuffer[1] = x->m_rightChannel.data();
+        x->m_bus._channels = x->m_internalBuffer.data();
+        x->settedStep = x->renderStep;
+    }
+
     if (x->museLib->initSampler(x->m_sampler, x->m_sampleRate, x->renderStep, 2) != ms_Result_OK) {
         pd_error(x, "[musesampler~] Unable to init MuseSampler");
         x->started = false;
         return false;
     }
 
-    x->m_leftChannel.resize(x->renderStep);
-    x->m_rightChannel.resize(x->renderStep);
-
-    x->m_bus._num_channels = 2;
-    x->m_bus._num_data_pts = x->renderStep;
-
-    x->m_internalBuffer[0] = x->m_leftChannel.data();
-    x->m_internalBuffer[1] = x->m_rightChannel.data();
-    x->m_bus._channels = x->m_internalBuffer.data();
-
+    x->museLib->setPosition(x->m_sampler, 0);
     x->museLib->startLivePlayMode(x->m_sampler);
 
-    post("Core Musampler Version %s", x->museLib->getVersionString());
     x->started = true;
 
     return true;
@@ -431,8 +481,10 @@ static bool startMuseSampler(t_MuseSampler *x) {
 // ==============================================
 static t_int *MuseSamplerPerform(t_int *w) {
     t_MuseSampler *x = (t_MuseSampler *)(w[1]);
+
     t_sample *lSig = (t_sample *)(w[2]);
     t_sample *rSig = (t_sample *)(w[3]);
+
     int n = (int)(w[4]);
     int i;
 
@@ -445,8 +497,13 @@ static t_int *MuseSamplerPerform(t_int *w) {
         return (w + 5);
     }
 
+    for (int i = 0; i < x->eventIndex; i++) {
+        x->museLib->startLivePlayNote(x->m_sampler, x->Track, x->eventList[i]);
+    }
+    x->eventIndex = 0;
+
     if (x->m_isPlaying) {
-        if (x->museLib->process(x->m_sampler, x->m_bus, x->m_currentPosition) != ms_Result_OK) {
+        if (x->museLib->process(x->m_sampler, x->m_bus, x->renderStep) != ms_Result_OK) {
             x->sucess = false;
             return (w + 5);
         }
@@ -465,6 +522,10 @@ static t_int *MuseSamplerPerform(t_int *w) {
             lSig[i] = x->m_bus._channels[0][i];
             rSig[i] = x->m_bus._channels[1][i];
         }
+        if (x->Track != nullptr) {
+            x->museLib->clearTrack(x->m_sampler, x->Track);
+        }
+        // x->museLib->clearTrack(x->m_sampler, x->Track);
     }
 
     return (w + 5);
@@ -473,15 +534,15 @@ static t_int *MuseSamplerPerform(t_int *w) {
 // ==============================================
 static void MuseSamplerAddDsp(t_MuseSampler *x, t_signal **sp) {
     x->renderStep = sp[0]->s_n;
-    x->outIndex = 0;
     x->m_currentPosition = 0;
     x->sucess = false;
 
     if (!x->started) {
         startMuseSampler(x);
+        x->museLib->setPlaying(x->m_sampler, false);
     }
 
-    dsp_add(MuseSamplerPerform, 4, x, sp[0]->s_vec, sp[0]->s_vec, sp[0]->s_n);
+    dsp_add(MuseSamplerPerform, 4, x, sp[0]->s_vec, sp[1]->s_vec, sp[0]->s_n);
 }
 
 // ==============================================
@@ -493,6 +554,7 @@ static void *NewMuseSampler(t_symbol *s, int argc, t_atom *argv) {
     if (!LoadMuseLib(x)) { // TODO: Thing about multithreading
         return nullptr;
     }
+    post("[musesampler~] Musampler Version %s", x->museLib->getVersionString());
 
     x->lSig = outlet_new(&x->xObj, &s_signal);
     x->rSig = outlet_new(&x->xObj, &s_signal);
@@ -508,13 +570,12 @@ static void *NewMuseSampler(t_symbol *s, int argc, t_atom *argv) {
             if (arg == "-inst") {
                 if (argv[i + 1].a_type == A_FLOAT) {
                     setInstrument(x, atom_getint(argv + i + 1));
-                    post("Loading instrument %f", atom_getfloat(argv + i + 1));
 
                 } else {
-                    post("Invalid argument");
+                    post("[musesampler~] Invalid argument");
                 }
             } else {
-                post("Invalid argument");
+                post("[musesampler~] Invalid argument");
             }
         }
     }
@@ -542,7 +603,7 @@ void musesampler_tilde_setup(void) {
                             CLASS_DEFAULT, A_GIMME, 0);
 
     class_addmethod(MuseSampler, (t_method)MuseSamplerAddDsp, gensym("dsp"), A_CANT, 0);
-    class_addmethod(MuseSampler, (t_method)getInstrumentList, gensym("insts"), A_NULL, 0);
+    class_addmethod(MuseSampler, (t_method)Get, gensym("get"), A_SYMBOL, 0);
 
     class_addmethod(MuseSampler, (t_method)AllNotesOff, gensym("reset"), A_NULL, 0);
     class_addmethod(MuseSampler, (t_method)NoteOn, gensym("noteon"), A_FLOAT, A_FLOAT, A_DEFFLOAT, 0);
@@ -551,4 +612,6 @@ void musesampler_tilde_setup(void) {
     class_addmethod(MuseSampler, (t_method)Reverb, gensym("reverb"), A_FLOAT, 0);
 
     class_addmethod(MuseSampler, (t_method)setInstrument, gensym("set"), A_FLOAT, 0);
+    post("[musesampler~] Pd version by Charles K. Neimog");
+    post("[musesampler~] version 0.0.1");
 }
