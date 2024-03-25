@@ -494,7 +494,7 @@ static bool startMuseSampler(t_MuseSampler *x) {
         return false;
     }
 
-    x->museLib->setPosition(x->m_sampler, 0);
+    // x->museLib->setPosition(x->m_sampler, 0);
     x->museLib->startLivePlayMode(x->m_sampler);
 
     x->started = true;

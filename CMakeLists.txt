@@ -37,8 +37,14 @@ file(GLOB SOURCES ${CMAKE_CURRENT_SOURCE_DIR}/Sources/*.cpp)
 add_pd_external(pd-musesampler musesampler~ ${SOURCES})
 set_target_properties(pd-musesampler PROPERTIES CXX_STANDARD 11)
 
+
 # check if build is for release
-if (CMAKE_BUILD_TYPE STREQUAL "Release")
+if (CMAKE_BUILD_TYPE STREQUAL "Release" OR CMAKE_BUILD_TYPE STREQUAL "")
+    add_custom_command(TARGET pd-musesampler POST_BUILD
+        COMMAND ${CMAKE_COMMAND} -E copy
+        ${CMAKE_CURRENT_SOURCE_DIR}/Resources/arabesque-C.mid
+        ${CMAKE_CURRENT_SOURCE_DIR}/pd-musesampler/
+    )
     add_custom_command(TARGET pd-musesampler POST_BUILD
         COMMAND ${CMAKE_COMMAND} -E copy
         ${CMAKE_CURRENT_SOURCE_DIR}/Resources/musesampler~-help.pd
