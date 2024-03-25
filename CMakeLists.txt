@@ -2,7 +2,6 @@ cmake_minimum_required(VERSION 3.15)
 include(${CMAKE_CURRENT_SOURCE_DIR}/Resources/pd.build/pd.cmake) # pd.build
 project(pd-musesampler)
 
-
 #╭──────────────────────────────────────╮
 #│          MuseScore Headers           │
 #╰──────────────────────────────────────╯
@@ -32,7 +31,7 @@ endif()
 #│           PureData Object            │
 #╰──────────────────────────────────────╯
 
-set_pd_external_path(${CMAKE_CURRENT_SOURCE_DIR}/pd-musesampler)
+set_pd_external_path(${CMAKE_CURRENT_SOURCE_DIR}/musesampler~)
 file(GLOB SOURCES ${CMAKE_CURRENT_SOURCE_DIR}/Sources/*.cpp)
 add_pd_external(pd-musesampler musesampler~ ${SOURCES})
 set_target_properties(pd-musesampler PROPERTIES CXX_STANDARD 11)
@@ -40,21 +39,21 @@ set_target_properties(pd-musesampler PROPERTIES CXX_STANDARD 11)
 
 # check if build is for release
 if (CMAKE_BUILD_TYPE STREQUAL "Release" OR CMAKE_BUILD_TYPE STREQUAL "")
-    add_custom_command(TARGET pd-musesampler POST_BUILD
-        COMMAND ${CMAKE_COMMAND} -E copy
-        ${CMAKE_CURRENT_SOURCE_DIR}/Resources/arabesque-C.mid
-        ${CMAKE_CURRENT_SOURCE_DIR}/pd-musesampler/
-    )
+    # add_custom_command(TARGET pd-musesampler POST_BUILD
+    #     COMMAND ${CMAKE_COMMAND} -E copy
+    #     ${CMAKE_CURRENT_SOURCE_DIR}/Resources/arabesque-C.mid
+    #     ${CMAKE_CURRENT_SOURCE_DIR}/musesampler~/
+    # )
     add_custom_command(TARGET pd-musesampler POST_BUILD
         COMMAND ${CMAKE_COMMAND} -E copy
         ${CMAKE_CURRENT_SOURCE_DIR}/Resources/musesampler~-help.pd
-        ${CMAKE_CURRENT_SOURCE_DIR}/pd-musesampler/
+        ${CMAKE_CURRENT_SOURCE_DIR}/musesampler~/
     )
 else()
     add_definitions(-DDEBUG)
     add_custom_command(TARGET pd-musesampler POST_BUILD
         COMMAND ${CMAKE_COMMAND} -E copy
-        ${CMAKE_CURRENT_SOURCE_DIR}/pd-musesampler/musesampler~-help.pd
+        ${CMAKE_CURRENT_SOURCE_DIR}/musesampler~/musesampler~-help.pd
         ${CMAKE_CURRENT_SOURCE_DIR}/Resources/
     )
 

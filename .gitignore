@@ -38,3 +38,4 @@ Sources/Musescore/apitypes.h
 musesampler~.m_amd64
 .vscode/c_cpp_properties.json
 musesampler~.l_amd64
+musesampler~

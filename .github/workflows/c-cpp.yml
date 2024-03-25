@@ -22,8 +22,8 @@ jobs:
       - name: Upload Object
         uses: actions/upload-artifact@v3
         with:
-          name: pd-musesampler
-          path: pd-musesampler
+          name: musesampler~
+          path: musesampler~
   windows-build:
     runs-on: windows-latest
     steps:
@@ -48,12 +48,12 @@ jobs:
         run: |
           cmake . -B build
           cmake --build build
-          rm pd-musesampler/*.a
+          rm musesampler~/*.a
       - name: Upload
         uses: actions/upload-artifact@v3
         with:
-          name: pd-musesampler
-          path: pd-musesampler
+          name: musesampler~
+          path: musesampler~
   linux-build:
     runs-on: ubuntu-latest
     steps:
@@ -73,5 +73,5 @@ jobs:
       - name: Upload Object
         uses: actions/upload-artifact@v3
         with:
-          name: pd-musesampler
-          path: pd-musesampler
+          name: musesampler~
+          path: musesampler~
