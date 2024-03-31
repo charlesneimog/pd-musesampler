@@ -4,6 +4,7 @@
 
 #include <array>
 #include <string>
+#include <thread>
 #include <unistd.h>
 #include <vector>
 
@@ -105,6 +106,8 @@ typedef struct _Synth {
     int outIndex;
     int renderStep;
     int settedStep;
+
+    std::string InstrumentName;
 
     std::vector<t_sample> m_leftChannel;
     std::vector<t_sample> m_rightChannel;
@@ -408,7 +411,6 @@ void Reverb(t_MuseSampler *x, t_float reverb) {
 void Get(t_MuseSampler *x, t_symbol *s) {
     std::string method = s->s_name;
     if (method == "instruments") {
-        DEBUG_PRINT("getInstrumentList");
         auto instrumentList = x->museLib->getInstrumentList();
         while (auto instrument = x->museLib->getNextInstrument(instrumentList)) {
             int instrumentId = x->museLib->getInstrumentId(instrument);
@@ -455,9 +457,8 @@ void setInstrument(t_MuseSampler *x, t_float id) {
                 ms_Track track = x->museLib->addTrack(x->m_sampler, instrumentId);
                 x->trackList.push_back(track);
             }
-            startMuseSampler(x);
+            x->InstrumentName = internalName;
             instrumentFound = true;
-            post("[musesampler~] %s Loaded!", internalName.c_str());
         }
     }
 
@@ -475,6 +476,9 @@ void setInstrument(t_MuseSampler *x, t_float id) {
 static bool startMuseSampler(t_MuseSampler *x) {
     if (x->renderStep == 0) {
         return false;
+    }
+    if (!x->InstrumentName.empty()) {
+        post("[musesampler~] Loading %s", x->InstrumentName.c_str());
     }
 
     if (x->m_leftChannel.size() != x->renderStep) {
@@ -498,6 +502,7 @@ static bool startMuseSampler(t_MuseSampler *x) {
     x->museLib->startLivePlayMode(x->m_sampler);
 
     x->started = true;
+    post("[musesampler~] %s loaded", x->InstrumentName.c_str());
 
     return true;
 }
@@ -559,7 +564,9 @@ static void MuseSamplerAddDsp(t_MuseSampler *x, t_signal **sp) {
     x->sucess = false;
 
     if (!x->started) {
-        startMuseSampler(x);
+        std::thread t;
+        t = std::thread(startMuseSampler, x);
+        t.detach();
         x->museLib->setPlaying(x->m_sampler, false);
     }
 
@@ -614,15 +621,8 @@ static void *FreeMuseSampler(t_MuseSampler *x) {
 }
 
 // ==============================================
-#if defined(_LANGUAGE_C_PLUS_PLUS) || defined(__cplusplus)
-extern "C" {
-void musesampler_tilde_setup(void);
-}
-#endif
-
-// ==============================================
 /* Setup the object */
-void musesampler_tilde_setup(void) {
+extern "C" void musesampler_tilde_setup(void) {
     MuseSampler = class_new(gensym("musesampler~"), (t_newmethod)NewMuseSampler, NULL, sizeof(t_MuseSampler),
                             CLASS_DEFAULT, A_GIMME, 0);
 
@@ -636,6 +636,6 @@ void musesampler_tilde_setup(void) {
     class_addmethod(MuseSampler, (t_method)Reverb, gensym("reverb"), A_FLOAT, 0);
 
     class_addmethod(MuseSampler, (t_method)setInstrument, gensym("set"), A_FLOAT, 0);
-    post("[musesampler~] Pd version by Charles K. Neimog");
+    post("[musesampler~] by Charles K. Neimog");
     post("[musesampler~] version 0.0.1");
 }
