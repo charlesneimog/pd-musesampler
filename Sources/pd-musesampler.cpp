@@ -636,6 +636,9 @@ extern "C" void musesampler_tilde_setup(void) {
     class_addmethod(MuseSampler, (t_method)Reverb, gensym("reverb"), A_FLOAT, 0);
 
     class_addmethod(MuseSampler, (t_method)setInstrument, gensym("set"), A_FLOAT, 0);
+
+#ifndef NEIMOG_LIBRARY
     post("[musesampler~] by Charles K. Neimog");
     post("[musesampler~] version 0.0.1");
+#endif
 }
