@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.15)
-include(${CMAKE_CURRENT_SOURCE_DIR}/Resources/pd.build/pd.cmake) # pd.build
+
 project(pd-musesampler)
 
 #╭──────────────────────────────────────╮
@@ -31,10 +31,18 @@ endif()
 #│           PureData Object            │
 #╰──────────────────────────────────────╯
 
-set_pd_external_path(${CMAKE_CURRENT_SOURCE_DIR}/musesampler~)
-file(GLOB SOURCES ${CMAKE_CURRENT_SOURCE_DIR}/Sources/*.cpp)
-add_pd_external(pd-musesampler musesampler~ ${SOURCES})
-set_target_properties(pd-musesampler PROPERTIES CXX_STANDARD 11)
+if (NEIMOG_LIBRARY)
+    add_library(pd-musesampler STATIC ${FOLLOWER})
+    set_target_properties(pd-musesampler PROPERTIES CXX_STANDARD 20)
+else()
+    set_pd_external_path(${CMAKE_CURRENT_SOURCE_DIR}/musesampler~)
+    file(GLOB SOURCES ${CMAKE_CURRENT_SOURCE_DIR}/Sources/*.cpp)
+    add_pd_external(pd-musesampler musesampler~ ${SOURCES})
+    set_target_properties(pd-musesampler PROPERTIES CXX_STANDARD 20)
+endif()
+
+
+
 
 
 
