@@ -1,6 +1,10 @@
 cmake_minimum_required(VERSION 3.15)
-
 project(pd-musesampler)
+
+if (NOT DEFINED NEIMOG_LIBRARY)
+    include(${CMAKE_CURRENT_SOURCE_DIR}/Resources/pd.build/pd.cmake) # pd.build
+endif()
+
 
 #╭──────────────────────────────────────╮
 #│          MuseScore Headers           │

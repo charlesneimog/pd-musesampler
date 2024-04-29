@@ -417,11 +417,14 @@ void Get(t_MuseSampler *x, t_symbol *s) {
             std::string internalName = x->museLib->getInstrumentName(instrument);
             std::string internalCategory = x->museLib->getInstrumentCategory(instrument);
             std::string instrumentSoundId = x->museLib->getMpeSoundId(instrument);
-            t_atom argv[2];
-            SETFLOAT(argv, instrumentId);
-            SETSYMBOL(argv + 1, gensym(internalName.c_str()));
-            outlet_anything(x->aux, gensym("inst"), 2, argv);
+            // t_atom argv[2];
+            // SETFLOAT(argv, instrumentId);
+            // SETSYMBOL(argv + 1, gensym(internalName.c_str()));
+            post("Id %d: %s", instrumentId, internalName.c_str());
+            // outlet_anything(x->aux, gensym("inst"), 2, argv);
         }
+    } else {
+        pd_error(x, "[musesampler~] Invalid argument for get method");
     }
 }
 
