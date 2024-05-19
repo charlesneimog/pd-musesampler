@@ -1,17 +1,19 @@
 cmake_minimum_required(VERSION 3.15)
+
 project(musesampler~)
 
 if (NOT DEFINED NEIMOG_LIBRARY)
-    set(PDCMAKE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/Resources/pd.cmake CACHE PATH "Path to pd.cmake")
+    set(PDCMAKE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/Resources  CACHE PATH "Path to pd.cmake")
     include(${PDCMAKE_DIR}/pd.cmake)
 endif()
 
 #╭──────────────────────────────────────╮
 #│          MuseScore Headers           │
 #╰──────────────────────────────────────╯
+
 if (NOT DEFINED MUSESCORE_VERSION)
     set(MUSESCORE_VERSION "v4.3.0")
-    message(STATUS "Using apitypes.h from Musescore version: ${MUSESCORE_VERSION}")
+    message(STATUS "Using apitypes.h and libhandler.h from Musescore version: ${MUSESCORE_VERSION}")
 endif()
 
 set(MUSESCORE_APITYPES ${CMAKE_CURRENT_SOURCE_DIR}/Sources/Musescore/apitypes.h)

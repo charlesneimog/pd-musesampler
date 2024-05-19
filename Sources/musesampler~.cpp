@@ -1,6 +1,6 @@
 #include <m_pd.h>
 
-#include <array>
+#include <cstdlib>
 #include <functional>
 #include <stdarg.h>
 #include <string>
@@ -18,12 +18,17 @@
 #include <dlfcn.h>
 #endif
 
+using namespace mu::musesampler;
+
 static t_class *MuseSampler;
 
 struct TrackNote {
     int trackIndex;
     int midiNote;
 };
+
+class MuseSamplerConfiguration;
+class MuseSamplerActionController;
 
 struct InstrumentInfo {
     int instrumentId = -1;
@@ -36,7 +41,8 @@ class t_MuseSampler {
   public:
     t_object xObj;
 
-    mu::musesampler::MuseSamplerLibHandler *MuseSounds;
+    mu::musesampler::MuseSamplerLibHandlerPtr MuseSounds = nullptr;
+
     bool MuStarted = false;
     unsigned BlockSize = 0;
 
@@ -55,17 +61,23 @@ static bool startMuseSampler(t_MuseSampler *x);
 // ==============================================
 inline void *loadLib(const std::string path) {
 #ifdef _WIN32
-    void *m_lib = LoadLibrary(path.c_str());
+    return LoadLibrary(path.c_str());
 #else
-    void *m_lib = dlopen(path.c_str(), RTLD_LAZY);
+    void *handle = dlopen(path.c_str(), RTLD_LAZY);
+    if (!handle) {
+        pd_error(NULL, "[musesampler~] Unable to load library");
+        pd_error(NULL, "[musesampler~] Error: %s", dlerror());
+        return nullptr;
+    }
+    return handle;
+
 #endif
-    return m_lib;
 }
 
 // ==============================================
 inline void closeLib(void *libHandle) {
 #ifdef _WIN32
-    UNUSED(libHandle);
+    // UNUSED(libHandle);
     return;
 #else
     dlclose(libHandle);
@@ -84,6 +96,7 @@ inline void *getLibFunc(void *libHandle, const char *funcName) {
 // ==============================================
 std::string getMuseSoundsPath() {
 #if _WIN32
+    // TODO: Not work anymore
     std::string museSoundsLib = "C:\\Windows\\System32\\MuseSamplerCoreLib.dll";
     if (access(museSoundsLib.c_str(), F_OK) != -1) {
         return museSoundsLib;
@@ -100,6 +113,7 @@ std::string getMuseSoundsPath() {
         return "";
     }
 #elif __APPLE__
+    // TODO: Check if work
     std::string museSoundsLib = "/usr/local/lib/libMuseSamplerCoreLib.dylib";
     if (access(museSoundsLib.c_str(), F_OK) != -1) {
         return museSoundsLib;
@@ -110,22 +124,6 @@ std::string getMuseSoundsPath() {
     pd_error(NULL, "[musesampler~] Not able to recognize the OS");
     return ""
 #endif
-}
-
-// ==============================================
-/*
- * This function loads the MuseSampler lib and get the Functions
- */
-bool LoadMuseLib(t_MuseSampler *x) {
-    std::string path = getMuseSoundsPath();
-
-    if (path.empty()) {
-        pd_error(NULL, "MuseSounds not found, if you are sure you have it please report in "
-                       "https://github.com/charlesneimog/pd-musesampler/issues.");
-        return false;
-    }
-
-    return true;
 }
 
 // ╭─────────────────────────────────────╮
@@ -327,27 +325,42 @@ static t_int *MuseSamplerPerform(t_int *w) { return (w + 5); }
 
 // ==============================================
 static void MuseSamplerAddDsp(t_MuseSampler *x, t_signal **sp) {
+    return;
     x->BlockSize = sp[0]->s_n;
-    if (!x->MuStarted) {
-    }
+    unsigned sr = sp[0]->s_sr;
 
-    // dsp_add(MuseSamplerPerform, 4, x, sp[0]->s_vec, sp[1]->s_vec, sp[0]->s_n);
+    if (!x->MuStarted) {
+        ms_MuseSampler mu = x->MuseSounds->create();
+        if (mu == nullptr) {
+            pd_error(nullptr, "[musesampler~] Unable to create new MuseSampler");
+            return;
+        }
+
+        if (x->MuseSounds->initSampler(mu, sr, x->BlockSize, 1) != ms_Result_OK) {
+            pd_error(nullptr, "[musesampler~] Unable to init MuseSampler Sampler");
+            return;
+        }
+
+        if (!x->MuseSounds->supportsMultipleTracks()) {
+            pd_error(nullptr, "[musesampler~] MuseSampler does not support multiple tracks");
+            return;
+        }
+    }
 }
 
 // ==============================================
 static void *NewMuseSampler(t_symbol *s, int argc, t_atom *argv) {
     t_MuseSampler *x = (t_MuseSampler *)pd_new(MuseSampler);
-
     x->lSig = outlet_new(&x->xObj, &s_signal);
     x->rSig = outlet_new(&x->xObj, &s_signal);
     x->aux = outlet_new(&x->xObj, &s_anything);
 
     std::string path = getMuseSoundsPath();
+    x->MuseSounds = std::make_shared<MuseSamplerLibHandler>(path);
 
-    mu::musesampler::MuseSamplerLibHandlerPtr m_libHandler = nullptr;
-    m_libHandler = std::make_shared<mu::musesampler::MuseSamplerLibHandler>(path);
-    if (!m_libHandler->isValid()) {
+    if (!x->MuseSounds->isValid()) {
         pd_error(NULL, "MuseSounds not found, if you are sure you have it please report");
+        return nullptr;
     }
 
     return x;
@@ -361,20 +374,10 @@ static void *FreeMuseSampler(t_MuseSampler *x) { return nullptr; }
 extern "C" void musesampler_tilde_setup(void) {
     MuseSampler = class_new(gensym("musesampler~"), (t_newmethod)NewMuseSampler, NULL, sizeof(t_MuseSampler),
                             CLASS_DEFAULT, A_GIMME, 0);
-
     class_addmethod(MuseSampler, (t_method)MuseSamplerAddDsp, gensym("dsp"), A_CANT, 0);
-    // class_addmethod(MuseSampler, (t_method)Get, gensym("get"), A_SYMBOL, 0);
-
-    // class_addmethod(MuseSampler, (t_method)AllNotesOff, gensym("reset"), A_NULL, 0);
-    // class_addmethod(MuseSampler, (t_method)NoteOn, gensym("noteon"), A_FLOAT, A_FLOAT, A_DEFFLOAT, 0);
-    // class_addmethod(MuseSampler, (t_method)NoteOff, gensym("noteoff"), A_FLOAT, A_FLOAT, 0);
-    // class_addmethod(MuseSampler, (t_method)Articulation, gensym("art"), A_FLOAT, 0);
-    // class_addmethod(MuseSampler, (t_method)Reverb, gensym("reverb"), A_FLOAT, 0);
-
-    // class_addmethod(MuseSampler, (t_method)setInstrument, gensym("set"), A_FLOAT, 0);
 
 #ifndef NEIMOG_LIBRARY
     post("[musesampler~] by Charles K. Neimog");
-    post("[musesampler~] version 0.0.1");
+    post("[musesampler~] version 0.0.2");
 #endif
 }

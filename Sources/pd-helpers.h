@@ -1,9 +1,11 @@
 #pragma once
 
+#include <functional>
 #include <iostream>
 #include <m_pd.h>
 #include <sstream>
 #include <string>
+#include <unordered_map>
 
 class Version {
   public:

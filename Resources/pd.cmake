@@ -24,7 +24,7 @@ endif()
 #│               and ARM                │
 #╰──────────────────────────────────────╯
 
-if (CMAKE_SYSTEM_PROCESSOR MATCHES "aarch64")
+if (CMAKE_SYSTEM_PROCESSOR MATCHES "aarch64" AND CMAKE_SYSTEM_NAME MATCHES "Linux")
     set(CMAKE_SYSTEM_NAME Linux)
     set(CMAKE_SYSTEM_PROCESSOR aarch64)
     find_program(AARCH64_GCC NAMES aarch64-linux-gnu-gcc)
@@ -35,7 +35,7 @@ if (CMAKE_SYSTEM_PROCESSOR MATCHES "aarch64")
     else()
         message(FATAL_ERROR "Cross-compilers for aarch64 architecture not found.")
     endif()
-elseif (CMAKE_SYSTEM_PROCESSOR MATCHES "arm")
+elseif (CMAKE_SYSTEM_PROCESSOR MATCHES "arm" AND CMAKE_SYSTEM_NAME MATCHES "Linux")
     set(CMAKE_SYSTEM_NAME Linux)
     set(CMAKE_SYSTEM_PROCESSOR arm)
     find_program(ARM_GCC NAMES arm-linux-gnueabihf-gcc)
@@ -67,8 +67,6 @@ if(NOT PD_SOURCES_PATH)
         if (NOT PD_HEADER_PATH)
             message(FATAL_ERROR "<m_pd.h> not found in C:\\Program Files\\Pd\\src, is Pd installed?")
         endif()
-
-        find_library(PD_LIBRARY NAMES pd HINTS ${PDBINDIR})
 
     #  macOS
     elseif(APPLE)
@@ -138,7 +136,6 @@ function(install_libs OBJ_NAME)
             foreach(DATA_FILE ${LOCAL_DATA_FILES})
                 get_filename_component(DATA_FILE ${DATA_FILE} ABSOLUTE)
                 get_filename_component(FILE_NAME ${DATA_FILE} NAME)
-
                 add_custom_command(
                     TARGET ${OBJ_NAME} POST_BUILD
                     COMMAND ${CMAKE_COMMAND} -E make_directory ${PDLIBDIR}/${PROJECT_NAME}
@@ -209,10 +206,13 @@ endfunction(set_pd_lib_ext)
 function(set_compiler_flags OBJ_PROJECT_NAME)
     if (WIN32)
         if (PD_FLOATSIZE EQUAL 64)
-            target_link_libraries(${OBJ_PROJECT_NAME} "${PDBINDIR}/pd64.lib")
+            find_library(PD_LIBRARY NAMES pd HINTS ${PDBINDIR})
+            target_link_libraries(${OBJ_PROJECT_NAME} ${PD_LIBRARY})
         elseif (PD_FLOATSIZE EQUAL 32)
-            target_link_libraries(${OBJ_PROJECT_NAME} "${PDBINDIR}/pd.lib")
+            find_library(PD_LIBRARY NAMES pd HINTS ${PDBINDIR})
+            target_link_libraries(${OBJ_PROJECT_NAME} ${PD_LIBRARY})
         endif()
+        set_target_properties(${OBJ_PROJECT_NAME} PROPERTIES LINK_FLAGS "-static-libstdc++")
     elseif (APPLE)
         set_target_properties(${OBJ_PROJECT_NAME} PROPERTIES LINK_FLAGS "-undefined dynamic_lookup")
     endif()
